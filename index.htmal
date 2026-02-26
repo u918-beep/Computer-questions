@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>اختبار الحاسوب - مدرسة السيّاب</title>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<style>
+body{
+  margin:0;
+  font-family:Tahoma;
+  background:linear-gradient(135deg,#0f172a,#1e293b);
+  color:white;
+}
+.container{max-width:900px;margin:auto;padding:20px}
+.card{
+  background:#1e293b;
+  padding:20px;
+  border-radius:15px;
+  margin-top:20px;
+  box-shadow:0 10px 30px rgba(0,0,0,.4)
+}
+input,select,button{
+  width:100%;
+  padding:12px;
+  margin-top:10px;
+  border:none;
+  border-radius:8px;
+  font-size:15px
+}
+button{background:#3b82f6;color:white;cursor:pointer}
+button:hover{opacity:.9}
+.danger{background:#ef4444}
+.hidden{display:none}
+.row{display:flex;justify-content:space-between;gap:10px}
+h1{text-align:center}
+.timer{font-size:18px;font-weight:bold}
+.warning{color:#facc15}
+</style>
+</head>
+<body>
+
+<div class="container">
+
+<h1>اختبار الحاسوب<br>مدرسة السيّاب</h1>
+
+<div id="loginBox" class="card">
+<select id="chapter">
+<option>الفصل الأول</option>
+<option>الفصل الثاني</option>
+<option>الفصل الثالث</option>
+<option>الفصل الرابع</option>
+<option>الكتاب كامل</option>
+</select>
+
+<input id="fullName" placeholder="الاسم الكامل">
+<input id="studentId" placeholder="رقم الطالب">
+
+<button onclick="startExam()">بدء الاختبار</button>
+</div>
+
+<div id="examBox" class="card hidden">
+<div class="row">
+<div class="timer">⏱ <span id="time">30:00</span></div>
+<div id="progress"></div>
+</div>
+
+<h3 id="questionText"></h3>
+<div id="answers"></div>
+
+<div class="row">
+<button onclick="prevQ()">السابق</button>
+<button onclick="nextQ()">التالي</button>
+<button onclick="finishExam()" class="danger">إنهاء</button>
+</div>
+
+<p class="warning" id="cheatWarn"></p>
+</div>
+
+<div id="resultBox" class="card hidden">
+<h2>النتيجة النهائية</h2>
+<p>الاسم: <b id="rName"></b></p>
+<p>الدرجة: <b id="rScore"></b>%</p>
+<p id="passStatus"></p>
+<button onclick="downloadCert()">تحميل الشهادة</button>
+<button onclick="location.reload()">إعادة</button>
+</div>
+
+</div>
+
+<script>
+
+const QUESTIONS=[
+{chapter:"الفصل الأول",q:"ما هو نظام تشغيل Apple؟",o:["Android","iOS","Windows"],a:"iOS"},
+{chapter:"الفصل الأول",q:"ما المقصود بإنترنت الأشياء؟",o:["ربط الأجهزة بالإنترنت","طابعة","معالج"],a:"ربط الأجهزة بالإنترنت"},
+{chapter:"الفصل الثاني",q:"امتداد ملف Excel الحديث؟",o:["xls","xlsx","doc"],a:"xlsx"},
+{chapter:"الفصل الثاني",q:"شريط الصيغة يسمى؟",o:["Formula Bar","Task Bar","Status Bar"],a:"Formula Bar"},
+{chapter:"الفصل الثالث",q:"المصفوفة الثنائية تحتاج؟",o:["متغير واحد","متغيرين","ثلاثة"],a:"متغيرين"},
+{chapter:"الفصل الرابع",q:"Google Drive خدمة؟",o:["سحابية","حاسبة","نظام تشغيل"],a:"سحابية"}
+];
+
+let filtered=[],current=0,score=0,time=1800,timer,cheatCount=0;
+
+function shuffle(a){return a.sort(()=>Math.random()-0.5)}
+
+function startExam(){
+const name=document.getElementById("fullName").value;
+if(!name)return alert("اكتب اسمك");
+let chapter=document.getElementById("chapter").value;
+
+filtered=QUESTIONS.filter(q=>chapter==="الكتاب كامل"||q.chapter===chapter);
+if(!filtered.length)return alert("لا يوجد أسئلة");
+
+filtered=shuffle(filtered);
+document.getElementById("loginBox").classList.add("hidden");
+document.getElementById("examBox").classList.remove("hidden");
+startTimer();
+showQ();
+enableAntiCheat();
+}
+
+function startTimer(){
+timer=setInterval(()=>{
+time--;
+let m=Math.floor(time/60),s=time%60;
+document.getElementById("time").innerText=
+m.toString().padStart(2,"0")+":"+
+s.toString().padStart(2,"0");
+if(time<=0)finishExam();
+},1000);
+}
+
+function showQ(){
+let q=filtered[current];
+document.getElementById("progress").innerText=
+(current+1)+"/"+filtered.length;
+document.getElementById("questionText").innerText=q.q;
+let box=document.getElementById("answers");
+box.innerHTML="";
+q.o.forEach(opt=>{
+let btn=document.createElement("button");
+btn.innerText=opt;
+btn.onclick=()=>{
+if(opt===q.a)score++;
+nextQ();
+};
+box.appendChild(btn);
+});
+}
+
+function nextQ(){
+current++;
+if(current>=filtered.length)finishExam();
+else showQ();
+}
+function prevQ(){if(current>0){current--;showQ();}}
+
+function finishExam(){
+clearInterval(timer);
+document.getElementById("examBox").classList.add("hidden");
+document.getElementById("resultBox").classList.remove("hidden");
+let percent=Math.round((score/filtered.length)*100);
+document.getElementById("rName").innerText=
+document.getElementById("fullName").value;
+document.getElementById("rScore").innerText=percent;
+document.getElementById("passStatus").innerText=
+percent>=50?"ناجح 🎓":"لم يجتز ❌";
+localStorage.setItem("lastScore",percent);
+}
+
+function enableAntiCheat(){
+document.addEventListener("visibilitychange",()=>{
+if(document.hidden){
+cheatCount++;
+warnCheat("تم تبديل الصفحة!");
+}
+});
+document.addEventListener("contextmenu",e=>e.preventDefault());
+document.addEventListener("copy",e=>e.preventDefault());
+}
+
+function warnCheat(msg){
+document.getElementById("cheatWarn").innerText=msg;
+if(cheatCount>=2){
+alert("تم إنهاء الاختبار بسبب محاولة غش");
+finishExam();
+}
+}
+
+function downloadCert(){
+const {jsPDF}=window.jspdf;
+let doc=new jsPDF();
+doc.text("Certificate of Achievement",20,20);
+doc.text("Student: "+document.getElementById("rName").innerText,20,40);
+doc.text("Score: "+document.getElementById("rScore").innerText+"%",20,50);
+doc.save("certificate.pdf");
+}
+
+</script>
+
+</body>
+</html>
